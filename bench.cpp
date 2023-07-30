@@ -17,14 +17,14 @@
 /* std::chrono::steady_clock resolution on Linux is quite bad (microseconds) */
 auto now()
 {
-    return std::chrono::steady_clock::now();
+    return std::chrono::high_resolution_clock::now();
 }
 
 template<class T>
 double duration_since(T t0)
 {
     return std::chrono::duration<double, std::chrono::seconds::period>(
-        std::chrono::steady_clock::now() - t0).count();
+        std::chrono::high_resolution_clock::now() - t0).count();
 }
 #else
 double now()

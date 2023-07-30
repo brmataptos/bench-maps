@@ -1,13 +1,13 @@
 extern crate rand;
 extern crate time;
 
-use std::collections::{BTreeMap, HashMap};
+use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
-use rand::distributions::IndependentSample;
-use time::precise_time_ns;
+use std::collections::{BTreeMap, HashMap};
+// use rand::distributions::IndependentSample;
+use std::time::Instant;
 
 trait Map {
-
     fn len(&mut self) -> usize;
 
     fn insert(&mut self, key: i64, value: i64) -> Option<i64>;
@@ -16,7 +16,6 @@ trait Map {
 }
 
 impl Map for BTreeMap<i64, i64> {
-
     fn len(&mut self) -> usize {
         BTreeMap::len(self)
     }
@@ -31,7 +30,6 @@ impl Map for BTreeMap<i64, i64> {
 }
 
 impl Map for HashMap<i64, i64> {
-
     fn len(&mut self) -> usize {
         HashMap::len(self)
     }
@@ -46,26 +44,26 @@ impl Map for HashMap<i64, i64> {
 }
 
 fn bench<M: Map, R: Rng>(m: &mut M, max: i64, repeats: i64, count: i64, rng: &mut R) {
-    let uniform = rand::distributions::Range::new(0, max);
+    let uniform = Uniform::new(0, max);
     let mut sum: u8 = 0;
 
     println!("{{ \"insert\":\n[ [\"iter\", \"size\", \"time\"]");
-    for k in 0 .. count {
-        let t0 = precise_time_ns();
-        for _ in 0 .. repeats {
-            let k = uniform.ind_sample(rng);
+    for k in 0..count {
+        let t0 = Instant::now();
+        for _ in 0..repeats {
+            let k = uniform.sample(rng);
             m.insert(k, k - 1);
         }
-        let t = (precise_time_ns() - t0) as f64 * 1e-9;
+        let t = t0.elapsed().as_secs_f64();
         println!(", [{}, {}, {}]", (k + 1) * repeats, m.len(), t);
     }
 
     println!("]\n, \"lookup\":\n[ [\"iter\", \"misses\", \"time\"]");
-    for k in 0 .. count {
+    for k in 0..count {
         let mut misses = 0;
-        let t0 = precise_time_ns();
-        for _ in 0 .. repeats {
-            let k = uniform.ind_sample(rng);
+        let t0 = Instant::now();
+        for _ in 0..repeats {
+            let k = uniform.sample(rng);
             match m.get(&k) {
                 None => {
                     misses += 1;
@@ -75,18 +73,18 @@ fn bench<M: Map, R: Rng>(m: &mut M, max: i64, repeats: i64, count: i64, rng: &mu
                 }
             }
         }
-        let t = (precise_time_ns() - t0) as f64 * 1e-9;
+        let t = t0.elapsed().as_secs_f64();
         println!(", [{}, {}, {}]", (k + 1) * repeats, misses, t);
     }
 
     println!("]\n, \"rng\":\n[ [\"time\"]");
-    for _ in 0 .. count {
-        let t0 = precise_time_ns();
-        for _ in 0 .. repeats {
-            let k = uniform.ind_sample(rng);
+    for _ in 0..count {
+        let t0 = Instant::now();
+        for _ in 0..repeats {
+            let k = uniform.sample(rng);
             sum = sum.wrapping_add(k as u8);
         }
-        let t = (precise_time_ns() - t0) as f64 * 1e-9;
+        let t = t0.elapsed().as_secs_f64();
         println!(", [{}]", t);
     }
 

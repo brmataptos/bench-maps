@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # we assume the lookup/insert time depends on:
 #
@@ -19,6 +19,7 @@
 import base64, glob, hashlib, json, os, re, sys, subprocess, tempfile
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 #@snip/hash_file[
 def hash_file(hasher, file, block_size=(1 << 20)):
@@ -168,16 +169,16 @@ def main_bench(program):
 
     nmaxs = list(map(int, logrange(NMAX_MIN, NMAX_MAX, NMAX_COUNT)))
     print("nmaxs:", nmaxs)
+    try:
+        os.mkdir("raw_data")
+    except OSError:
+        pass
     for nmax in nmaxs:
         repeats = REPEATS
         print("nmax: ", nmax)
         # TODO: find the optimal 'count' that gives us 0.5 lookup hit chance
         for count in map(int, logrange(nmax / repeats * .5,
                                        nmax / repeats * 2, 4)):
-            try:
-                os.mkdir("raw_data")
-            except OSError:
-                pass
             with tempfile.NamedTemporaryFile(
                     mode="w",
                     dir="raw_data",
@@ -277,7 +278,7 @@ def main_analyze():
 
 def main_plot():
     import pandas as pd
-    PLOT_MIN = True # min vs mean
+    PLOT_MIN = False # min vs mean
     SUBTRACT_RNG = True
     ERR_BARS = True
     LOG_Y = False
@@ -323,8 +324,10 @@ def main_plot():
             return t
     for operation, d in t.groupby(["operation"]):
         fig, ax = plt.subplots()
-        for method, g in d.groupby(["method"]):
-            for is_hit, gg in g.groupby(["is_hit"]):
+        for method1, g in d.groupby(["method"]):
+            method = method1[0]
+            for is_hit1, gg in g.groupby(["is_hit"]):
+                is_hit = is_hit1[0]
                 labels = {True: "hit", False: "miss"}
                 linestyles = {True: "-", False: "--"}
                 if ERR_BARS:
@@ -364,9 +367,13 @@ def main_plot():
             ax.set_ylim(0, d["time"].quantile(.95) * 1.5)
         ax.set_xlabel("size")
         ax.set_ylabel("time per {0} /ns".format(operation))
-        ax.set_xscale("log")
+        ax.set_xscale("log", base=10)
+        locmaj = ticker.LogLocator(base=10, numticks=50)
+        ax.xaxis.set_minor_locator(locmaj)
         if LOG_Y:
-            ax.set_yscale("log")
+            locmaj2 = ticker.LogLocator(base=10, numticks=50)
+            ax.set_yscale("log", base=10)
+            ax.yaxis.set_minor_locator(locmaj2)
         ax.grid("on")
         legend = ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig.tight_layout()
@@ -374,6 +381,7 @@ def main_plot():
             os.mkdir("plots")
         except OSError:
             pass
+        fig.set_size_inches(w = 6000/fig.dpi, h=3000/fig.dpi)
         fig.savefig("plots/plot-{0}.svg".format(operation),
                     bbox_extra_artists=(legend,),
                     bbox_inches="tight")
